@@ -4,8 +4,8 @@
   <ShortName>VisionCamera</ShortName>
   <Description>Search VisionCamera</Description>
   <InputEncoding>UTF-8</InputEncoding>
-  <Image width="16" height="16" type="image/x-icon">https://mrousavy.github.io/react-native-vision-camera/./favicon.ico</Image>
-  <Url type="text/html" method="get" template="https://mrousavy.github.io/react-native-vision-camera/search?q={searchTerms}"/>
-  <Url type="application/opensearchdescription+xml" rel="self" template="https://mrousavy.github.io/react-native-vision-camera/opensearch.xml" />
-  <moz:SearchForm>https://mrousavy.github.io/react-native-vision-camera/</moz:SearchForm>
+  <Image width="16" height="16" type="image/x-icon">https://mrousavy.github.io/./favicon.ico</Image>
+  <Url type="text/html" method="get" template="https://mrousavy.github.io/search?q={searchTerms}"/>
+  <Url type="application/opensearchdescription+xml" rel="self" template="https://mrousavy.github.io/opensearch.xml" />
+  <moz:SearchForm>https://mrousavy.github.io/</moz:SearchForm>
 </OpenSearchDescription>
