@@ -43,8 +43,9 @@ class VideoPipeline(val width: Int,
   private var recordingSession: RecordingSession? = null
 
   // Input
-  private val surfaceTexture: SurfaceTexture
   val surface: Surface
+  private val surfaceTexture: SurfaceTexture
+  private var isMirrored = false
 
   init {
     mHybridData = initHybrid(width, height)
@@ -86,7 +87,10 @@ class VideoPipeline(val width: Int,
       // 4. Get the transform matrix from the SurfaceTexture (rotations/scales applied by Camera)
       surfaceTexture.getTransformMatrix(transformMatrix)
 
-      // 5. Draw it with applied rotation/mirroring
+      // 5. Figure out if the transformation matrix is mirroring our images (needed by the frame processor)
+      isMirrored = transformMatrix[5] == -1.0f
+
+      // 6. Draw it with applied rotation/mirroring
       onFrame(transformMatrix)
     }
   }
@@ -98,7 +102,7 @@ class VideoPipeline(val width: Int,
       val image = reader.acquireLatestImage() ?: return@setOnImageAvailableListener
 
       // TODO: Get correct orientation and isMirrored
-      val frame = Frame(image, image.timestamp, Orientation.PORTRAIT, false)
+      val frame = Frame(image, image.timestamp, Orientation.PORTRAIT, isMirrored)
       frame.incrementRefCount()
       frameProcessor?.call(frame)
       frame.decrementRefCount()
