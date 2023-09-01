@@ -88,12 +88,11 @@ jsi::Value FrameHostObject::get(jsi::Runtime& runtime, const jsi::PropNameID& pr
   if (name == "toArrayBuffer") {
     jsi::HostFunctionType toArrayBuffer = [=](jsi::Runtime& runtime, const jsi::Value& thisArg,
                                               const jsi::Value* args, size_t count) -> jsi::Value {
-      auto buffer = this->frame->toByteBuffer();
-      if (!buffer->isDirect()) {
-        throw std::runtime_error(
-            "Failed to get byte content of Frame - array is not direct ByteBuffer!");
-      }
-      auto size = buffer->getDirectSize();
+      auto buffer = this->frame->getHardwareBuffer();
+
+      AHardwareBuffer_Desc description;
+      AHardwareBuffer_describe(buffer, &description);
+      size_t size = description.height * description.stride;
 
       static constexpr auto ARRAYBUFFER_CACHE_PROP_NAME = "__frameArrayBufferCache";
       if (!runtime.global().hasProperty(runtime, ARRAYBUFFER_CACHE_PROP_NAME)) {
@@ -112,8 +111,12 @@ jsi::Value FrameHostObject::get(jsi::Runtime& runtime, const jsi::PropNameID& pr
       }
 
       // directly write to C++ JSI ArrayBuffer
+      void* data;
+      int fence = -1;
+      AHardwareBuffer_lock(buffer, AHARDWAREBUFFER_USAGE_CPU_READ_MASK, fence, nullptr, &data);
       auto destinationBuffer = arrayBuffer.data(runtime);
-      memcpy(destinationBuffer, buffer->getDirectAddress(), sizeof(uint8_t) * size);
+      memcpy(destinationBuffer, data, sizeof(uint8_t) * size);
+      AHardwareBuffer_unlock(buffer, &fence);
 
       return arrayBuffer;
     };

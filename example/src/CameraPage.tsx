@@ -201,6 +201,11 @@ export function CameraPage({ navigation }: Props): React.ReactElement {
 
     console.log(`${frame.timestamp}: ${frame.width}x${frame.height} ${frame.pixelFormat} Frame (${frame.orientation})`);
     examplePlugin(frame);
+
+    const start = performance.now();
+    const px = frame.toArrayBuffer();
+    const end = performance.now();
+    console.log(`${end - start}ms!`, px[0], px[1], px[2]);
   }, []);
 
   return (

@@ -8,6 +8,9 @@
 #include <fbjni/fbjni.h>
 #include <jni.h>
 
+#include <android/hardware_buffer_jni.h>
+#include <android/hardware_buffer.h>
+
 namespace vision {
 
 using namespace facebook;
@@ -58,9 +61,10 @@ int JFrame::getBytesPerRow() const {
   return getBytesPerRowMethod(self());
 }
 
-local_ref<JByteBuffer> JFrame::toByteBuffer() const {
-  static const auto toByteBufferMethod = getClass()->getMethod<JByteBuffer()>("toByteBuffer");
-  return toByteBufferMethod(self());
+AHardwareBuffer* JFrame::getHardwareBuffer() const {
+  static const auto getHardwareBufferMethod = getClass()->getMethod<jobject()>("getHardwareBuffer");
+  auto object = getHardwareBufferMethod(self());
+  return AHardwareBuffer_fromHardwareBuffer(jni::Environment::current(), object.get());
 }
 
 void JFrame::incrementRefCount() {
