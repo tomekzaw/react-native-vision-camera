@@ -35,21 +35,11 @@ using namespace facebook;
   assert(_workletRuntime != nullptr);
   jsi::Runtime& runtime = _workletRuntime->getJSIRuntime();
 
-  try {
-    // Wrap HostObject as JSI Value
-    auto argument = jsi::Object::createFromHostObject(runtime, frameHostObject);
-      
-    // Call the Worklet with the Frame JS Host Object as an argument
-    _workletRuntime->runGuarded(_worklet, argument);
-  } catch (jsi::JSError& jsError) {
-    // JS Error occured, print it to console.
-    auto message = jsError.getMessage();
-
-//    _workletContext->invokeOnJsThread([message](jsi::Runtime& jsRuntime) {
-//      auto logFn = jsRuntime.global().getPropertyAsObject(jsRuntime, "console").getPropertyAsFunction(jsRuntime, "error");
-//      logFn.call(jsRuntime, jsi::String::createFromUtf8(jsRuntime, "Frame Processor threw an error: " + message));
-//    });
-  }
+  // Wrap HostObject as JSI Value
+  auto argument = jsi::Object::createFromHostObject(runtime, frameHostObject);
+    
+  // Call the Worklet with the Frame JS Host Object as an argument
+  _workletRuntime->runGuarded(_worklet, argument);
 }
 
 - (void)call:(Frame* _Nonnull)frame {
