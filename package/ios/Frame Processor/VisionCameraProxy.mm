@@ -44,7 +44,9 @@ VisionCameraProxy::~VisionCameraProxy() {
   NSLog(@"VisionCameraProxy: Destroying context...");
   // Destroy ArrayBuffer cache for both the JS and the Worklet Runtime.
   vision::invalidateArrayBufferCache(_rnRuntime);
-  vision::invalidateArrayBufferCache(_workletRuntime->getJSIRuntime());
+  if (_workletRuntime != nullptr) {
+    vision::invalidateArrayBufferCache(_workletRuntime->getJSIRuntime());
+  }
 }
 
 std::vector<jsi::PropNameID> VisionCameraProxy::getPropertyNames(jsi::Runtime& runtime) {
