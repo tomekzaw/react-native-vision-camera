@@ -35,6 +35,7 @@ private:
 private:
   std::shared_ptr<reanimated::WorkletRuntime> _workletRuntime;
   std::shared_ptr<react::CallInvoker> _callInvoker;
+  jsi::Runtime *_rnRuntime;
 };
 #endif
 

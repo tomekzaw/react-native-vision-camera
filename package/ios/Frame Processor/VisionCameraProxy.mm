@@ -37,6 +37,7 @@ __attribute__((objc_runtime_name("_TtC12VisionCamera10CameraView")))
 using namespace facebook;
 
 VisionCameraProxy::VisionCameraProxy(jsi::Runtime& runtime, std::shared_ptr<react::CallInvoker> callInvoker) {
+  _rnRuntime = &runtime;
   _callInvoker = callInvoker;
 
   NSLog(@"VisionCameraProxy: Creating Worklet Context...");
@@ -55,7 +56,7 @@ VisionCameraProxy::VisionCameraProxy(jsi::Runtime& runtime, std::shared_ptr<reac
 VisionCameraProxy::~VisionCameraProxy() {
   NSLog(@"VisionCameraProxy: Destroying context...");
   // Destroy ArrayBuffer cache for both the JS and the Worklet Runtime.
-//  vision::invalidateArrayBufferCache(*_workletContext->getJsRuntime());
+  vision::invalidateArrayBufferCache(*_rnRuntime);
   vision::invalidateArrayBufferCache(_workletRuntime->getJSIRuntime());
 }
 
