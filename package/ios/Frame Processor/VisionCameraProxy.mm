@@ -36,27 +36,14 @@ __attribute__((objc_runtime_name("_TtC12VisionCamera10CameraView")))
 
 using namespace facebook;
 
-VisionCameraProxy::VisionCameraProxy(jsi::Runtime& runtime, std::shared_ptr<react::CallInvoker> callInvoker) {
-  _rnRuntime = &runtime;
-  _callInvoker = callInvoker;
-
-  NSLog(@"VisionCameraProxy: Creating Worklet Context...");
-  auto runOnJS = [callInvoker](std::function<void()>&& f) {
-    // Run on React JS Runtime
-    callInvoker->invokeAsync(std::move(f));
-  };
-  auto runOnWorklet = [](std::function<void()>&& f) {
-    // Run on Frame Processor Worklet Runtime
-    dispatch_async(CameraQueues.videoQueue, [f = std::move(f)]() { f(); });
-  };
-
-  NSLog(@"VisionCameraProxy: Worklet Context Created!");
+VisionCameraProxy::VisionCameraProxy(jsi::Runtime& runtime, std::shared_ptr<react::CallInvoker> callInvoker) : _rnRuntime(runtime) {
+  NSLog(@"VisionCameraProxy: Created!");
 }
 
 VisionCameraProxy::~VisionCameraProxy() {
   NSLog(@"VisionCameraProxy: Destroying context...");
   // Destroy ArrayBuffer cache for both the JS and the Worklet Runtime.
-  vision::invalidateArrayBufferCache(*_rnRuntime);
+  vision::invalidateArrayBufferCache(_rnRuntime);
   vision::invalidateArrayBufferCache(_workletRuntime->getJSIRuntime());
 }
 
@@ -68,13 +55,10 @@ std::vector<jsi::PropNameID> VisionCameraProxy::getPropertyNames(jsi::Runtime& r
   return result;
 }
 
-void VisionCameraProxy::setFrameProcessor(jsi::Runtime& runtime, int viewTag, const jsi::Object& object, const jsi::Value &workletRuntimeValue) {
-  auto frameProcessorType = object.getProperty(runtime, "type").asString(runtime).utf8(runtime);
-  auto worklet = reanimated::extractShareableOrThrow<reanimated::ShareableWorklet>(runtime, object.getProperty(runtime, "frameProcessor"));
+void VisionCameraProxy::setFrameProcessor(jsi::Runtime& runtime, int viewTag, const std::string &frameProcessorType, const std::shared_ptr<reanimated::ShareableWorklet> &worklet, const std::shared_ptr<reanimated::WorkletRuntime> &workletRuntime) {
+  _workletRuntime = workletRuntime;
 
-  _workletRuntime = reanimated::extractWorkletRuntime(runtime, workletRuntimeValue);
-
-  RCTExecuteOnMainQueue(^{
+  RCTExecuteOnMainQueue([=] {
     auto currentBridge = [RCTBridge currentBridge];
     auto anonymousView = [currentBridge.uiManager viewForReactTag:[NSNumber numberWithDouble:viewTag]];
     auto view = static_cast<CameraView*>(anonymousView);
@@ -114,10 +98,11 @@ jsi::Value VisionCameraProxy::get(jsi::Runtime& runtime, const jsi::PropNameID& 
     return jsi::Function::createFromHostFunction(
         runtime, jsi::PropNameID::forUtf8(runtime, "setFrameProcessor"), 1,
         [this](jsi::Runtime& runtime, const jsi::Value& thisValue, const jsi::Value* arguments, size_t count) -> jsi::Value {
-          auto viewTag = arguments[0].asNumber();
-          auto object = arguments[1].asObject(runtime);
-          const auto &workletRuntime = arguments[2];
-          this->setFrameProcessor(runtime, static_cast<int>(viewTag), object, workletRuntime);
+          auto viewTag = static_cast<int>(arguments[0].asNumber());
+          auto frameProcessorType = arguments[1].asString(runtime).utf8(runtime);
+          auto worklet = reanimated::extractShareableOrThrow<reanimated::ShareableWorklet>(runtime, arguments[2]);
+          auto workletRuntime = reanimated::extractWorkletRuntime(runtime, arguments[3]);
+          this->setFrameProcessor(runtime, viewTag, frameProcessorType, worklet, workletRuntime);
           return jsi::Value::undefined();
         });
   }

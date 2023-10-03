@@ -28,14 +28,14 @@ public:
   jsi::Value get(jsi::Runtime& runtime, const jsi::PropNameID& name) override;
 
 private:
-  void setFrameProcessor(jsi::Runtime& runtime, int viewTag, const jsi::Object& frameProcessor, const jsi::Value &workletRuntimeValue);
+  void setFrameProcessor(jsi::Runtime& runtime, int viewTag, const std::string &frameProcessorType, const std::shared_ptr<reanimated::ShareableWorklet> &worklet, const std::shared_ptr<reanimated::WorkletRuntime> &workletRuntime);
   void removeFrameProcessor(jsi::Runtime& runtime, int viewTag);
   jsi::Value getFrameProcessorPlugin(jsi::Runtime& runtime, std::string name, const jsi::Object& options);
 
 private:
   std::shared_ptr<reanimated::WorkletRuntime> _workletRuntime;
   std::shared_ptr<react::CallInvoker> _callInvoker;
-  jsi::Runtime *_rnRuntime;
+  jsi::Runtime &_rnRuntime;
 };
 #endif
 

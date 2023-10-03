@@ -1,7 +1,6 @@
 import { DependencyList, useMemo } from 'react'
 import type { Frame, FrameInternal } from '../Frame'
 import { FrameProcessor } from '../CameraProps'
-import { makeShareableCloneRecursive } from 'react-native-reanimated'
 
 /**
  * Create a new Frame Processor function which you can pass to the `<Camera>`.
@@ -11,9 +10,9 @@ import { makeShareableCloneRecursive } from 'react-native-reanimated'
  *
  * Also make sure to memoize the returned object, so that the Camera doesn't reset the Frame Processor Context each time.
  */
-export function createFrameProcessor(frameProcessor: (frame: Frame) => void, type: FrameProcessor['type']): FrameProcessor {
+export function createFrameProcessor(frameProcessor: FrameProcessor['frameProcessor'], type: FrameProcessor['type']): FrameProcessor {
   return {
-    frameProcessor: makeShareableCloneRecursive((frame: Frame) => {
+    frameProcessor: (frame: Frame) => {
       'worklet'
       // Increment ref-count by one
       const internal = frame as FrameInternal
@@ -25,7 +24,7 @@ export function createFrameProcessor(frameProcessor: (frame: Frame) => void, typ
         // Potentially delete Frame if we were the last ref (no runAsync)
         internal.decrementRefCount()
       }
-    }),
+    },
     type: type,
   }
 }

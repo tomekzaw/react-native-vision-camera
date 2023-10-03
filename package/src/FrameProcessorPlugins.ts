@@ -8,6 +8,7 @@ import type { WorkletRuntime } from 'react-native-reanimated'
 
 import { CameraModule } from './NativeCameraModule'
 import { assertJSIAvailable } from './JSIHelper'
+import { ShareableRef } from 'react-native-reanimated/lib/typescript/reanimated2/commonTypes'
 
 type BasicParameterType = string | number | boolean | undefined
 type ParameterType = BasicParameterType | BasicParameterType[] | Record<string, BasicParameterType | undefined>
@@ -23,7 +24,12 @@ interface FrameProcessorPlugin {
 }
 
 interface TVisionCameraProxy {
-  setFrameProcessor: (viewTag: number, frameProcessor: FrameProcessor, workletRuntime: WorkletRuntime) => void
+  setFrameProcessor: (
+    viewTag: number,
+    frameProcessorType: FrameProcessor['type'],
+    worklet: ShareableRef<(frame: Frame) => void>,
+    workletRuntime: WorkletRuntime,
+  ) => void
   removeFrameProcessor: (viewTag: number) => void
   /**
    * Creates a new instance of a Frame Processor Plugin.

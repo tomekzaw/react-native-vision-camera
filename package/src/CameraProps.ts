@@ -3,10 +3,9 @@ import type { CameraDevice, CameraDeviceFormat, VideoStabilizationMode } from '.
 import type { CameraRuntimeError } from './CameraError'
 import type { Frame } from './Frame'
 import type { Orientation } from './Orientation'
-import { ShareableRef } from 'react-native-reanimated/lib/typescript/reanimated2/commonTypes'
 
 export type FrameProcessor = {
-  frameProcessor: ShareableRef<(frame: Frame) => void>
+  frameProcessor: (frame: Frame) => void
   type: 'frame-processor'
 }
 

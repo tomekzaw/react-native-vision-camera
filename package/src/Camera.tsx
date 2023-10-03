@@ -11,7 +11,8 @@ import type { RecordVideoOptions, VideoFile } from './VideoFile'
 import { VisionCameraProxy } from './FrameProcessorPlugins'
 import { CameraDevices } from './CameraDevices'
 import type { EmitterSubscription } from 'react-native'
-import { createWorkletRuntime } from 'react-native-reanimated'
+import { createWorkletRuntime, makeShareableCloneRecursive } from 'react-native-reanimated'
+import { Frame } from './Frame'
 
 //#region Types
 export type CameraPermissionStatus = 'granted' | 'not-determined' | 'denied' | 'restricted'
@@ -390,8 +391,10 @@ export class Camera extends React.PureComponent<CameraProps> {
 
   //#region Lifecycle
   private setFrameProcessor(frameProcessor: FrameProcessor): void {
+    const worklet = makeShareableCloneRecursive<(frame: Frame) => void>(frameProcessor.frameProcessor)
+    // TODO: re-use worklet runtime
     const workletRuntime = createWorkletRuntime('VisionCameraSync')
-    VisionCameraProxy.setFrameProcessor(this.handle, frameProcessor, workletRuntime)
+    VisionCameraProxy.setFrameProcessor(this.handle, frameProcessor.type, worklet, workletRuntime)
   }
 
   private unsetFrameProcessor(): void {
