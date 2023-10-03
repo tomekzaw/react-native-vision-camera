@@ -51,11 +51,11 @@ try {
   assertJSIAvailable()
 
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { createWorkletRuntime, makeShareableCloneRecursive, makeMutable } = require('react-native-reanimated') as typeof TReanimated
+  const { createWorkletRuntime, makeMutable } = require('react-native-reanimated') as typeof TReanimated
 
   isAsyncContextBusy = makeMutable(false)
-  const asyncContext = createWorkletRuntime('VisionCameraAsyncContext')
-  runOnAsyncContext = makeShareableCloneRecursive((frame: Frame, func: () => void) => {
+  const asyncContext = createWorkletRuntime('VisionCamera.async')
+  runOnAsyncContext = (frame: Frame, func: () => void) => {
     'worklet'
     try {
       // Call long-running function
@@ -67,7 +67,7 @@ try {
 
       isAsyncContextBusy.value = false
     }
-  })
+  }
   hasWorklets = true
 } catch (e) {
   // Worklets are not installed, so Frame Processors are disabled.
