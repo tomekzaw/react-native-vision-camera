@@ -3,7 +3,9 @@ import type { FrameProcessor } from './CameraProps'
 import { CameraRuntimeError } from './CameraError'
 
 // only import typescript types
-import type TWorklets from 'react-native-worklets-core'
+import type TReanimated from 'react-native-reanimated'
+import type { WorkletRuntime } from 'react-native-reanimated'
+
 import { CameraModule } from './NativeCameraModule'
 import { assertJSIAvailable } from './JSIHelper'
 
@@ -21,7 +23,7 @@ interface FrameProcessorPlugin {
 }
 
 interface TVisionCameraProxy {
-  setFrameProcessor: (viewTag: number, frameProcessor: FrameProcessor) => void
+  setFrameProcessor: (viewTag: number, frameProcessor: FrameProcessor, workletRuntime: WorkletRuntime) => void
   removeFrameProcessor: (viewTag: number) => void
   /**
    * Creates a new instance of a Frame Processor Plugin.
@@ -43,11 +45,11 @@ try {
   assertJSIAvailable()
 
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { Worklets } = require('react-native-worklets-core') as typeof TWorklets
+  const { createWorkletRuntime, makeShareableCloneRecursive, makeMutable } = require('react-native-reanimated') as typeof TReanimated
 
-  isAsyncContextBusy = Worklets.createSharedValue(false)
-  const asyncContext = Worklets.createContext('VisionCamera.async')
-  runOnAsyncContext = Worklets.createRunInContextFn((frame: Frame, func: () => void) => {
+  isAsyncContextBusy = makeMutable(false)
+  const asyncContext = createWorkletRuntime('VisionCameraAsyncContext')
+  runOnAsyncContext = makeShareableCloneRecursive((frame: Frame, func: () => void) => {
     'worklet'
     try {
       // Call long-running function
@@ -59,7 +61,7 @@ try {
 
       isAsyncContextBusy.value = false
     }
-  }, asyncContext)
+  })
   hasWorklets = true
 } catch (e) {
   // Worklets are not installed, so Frame Processors are disabled.

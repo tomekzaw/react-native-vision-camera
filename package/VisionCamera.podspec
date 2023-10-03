@@ -11,9 +11,9 @@ if defined?($VCDisableFrameProcessors)
 end
 
 Pod::UI.puts("[VisionCamera] node modules #{Dir.exist?(nodeModules) ? "found at #{nodeModules}" : "not found!"}")
-workletsPath = File.join(nodeModules, "react-native-worklets-core")
-hasWorklets = File.exist?(workletsPath) && !forceDisableFrameProcessors
-Pod::UI.puts("[VisionCamera] react-native-worklets-core #{hasWorklets ? "found" : "not found"}, Frame Processors #{hasWorklets ? "enabled" : "disabled"}!")
+reanimatedPath = File.join(nodeModules, "react-native-reanimated")
+hasWorklets = File.exist?(reanimatedPath) && !forceDisableFrameProcessors
+Pod::UI.puts("[VisionCamera] react-native-reanimated #{hasWorklets ? "found" : "not found"}, Frame Processors #{hasWorklets ? "enabled" : "disabled"}!")
 
 Pod::Spec.new do |s|
   s.name         = "VisionCamera"
@@ -69,6 +69,6 @@ Pod::Spec.new do |s|
   s.dependency "React-callinvoker"
 
   if hasWorklets
-    s.dependency "react-native-worklets-core"
+    s.dependency "RNReanimated"
   end
 end

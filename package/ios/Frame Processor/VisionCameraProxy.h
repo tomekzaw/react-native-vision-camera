@@ -12,7 +12,7 @@
 #import <React/RCTBridge.h>
 
 #ifdef __cplusplus
-#import "WKTJsiWorkletContext.h"
+#import <RNReanimated/WorkletRuntime.h>
 #import <ReactCommon/CallInvoker.h>
 #import <jsi/jsi.h>
 
@@ -28,12 +28,12 @@ public:
   jsi::Value get(jsi::Runtime& runtime, const jsi::PropNameID& name) override;
 
 private:
-  void setFrameProcessor(jsi::Runtime& runtime, int viewTag, const jsi::Object& frameProcessor);
+  void setFrameProcessor(jsi::Runtime& runtime, int viewTag, const jsi::Object& frameProcessor, const jsi::Value &workletRuntimeValue);
   void removeFrameProcessor(jsi::Runtime& runtime, int viewTag);
   jsi::Value getFrameProcessorPlugin(jsi::Runtime& runtime, std::string name, const jsi::Object& options);
 
 private:
-  std::shared_ptr<RNWorklet::JsiWorkletContext> _workletContext;
+  std::shared_ptr<reanimated::WorkletRuntime> _workletRuntime;
   std::shared_ptr<react::CallInvoker> _callInvoker;
 };
 #endif

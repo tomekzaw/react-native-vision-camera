@@ -11,6 +11,7 @@ import type { RecordVideoOptions, VideoFile } from './VideoFile'
 import { VisionCameraProxy } from './FrameProcessorPlugins'
 import { CameraDevices } from './CameraDevices'
 import type { EmitterSubscription } from 'react-native'
+import { createWorkletRuntime } from 'react-native-reanimated'
 
 //#region Types
 export type CameraPermissionStatus = 'granted' | 'not-determined' | 'denied' | 'restricted'
@@ -389,7 +390,8 @@ export class Camera extends React.PureComponent<CameraProps> {
 
   //#region Lifecycle
   private setFrameProcessor(frameProcessor: FrameProcessor): void {
-    VisionCameraProxy.setFrameProcessor(this.handle, frameProcessor)
+    const workletRuntime = createWorkletRuntime('VisionCameraSync')
+    VisionCameraProxy.setFrameProcessor(this.handle, frameProcessor, workletRuntime)
   }
 
   private unsetFrameProcessor(): void {

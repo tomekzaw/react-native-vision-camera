@@ -7,7 +7,15 @@
 //
 
 #import "FrameHostObject.h"
-#import "WKTJsiHostObject.h"
+
+/**
+ * Creates a new Host function declaration as a lambda with all deps passed
+ * with implicit lambda capture clause
+ */
+#define JSI_HOST_FUNCTION_LAMBDA                                               \
+  [=](jsi::Runtime & runtime, const jsi::Value &thisValue,                     \
+      const jsi::Value *arguments, size_t count) -> jsi::Value
+
 #import <Foundation/Foundation.h>
 #import <jsi/jsi.h>
 

@@ -16,7 +16,6 @@
 #import "FrameProcessorPluginHostObject.h"
 #import "FrameProcessorPluginRegistry.h"
 #import "JSINSObjectConversion.h"
-#import "WKTJsiWorklet.h"
 
 #import <React/RCTBridge+Private.h>
 #import <React/RCTBridge.h>
@@ -50,15 +49,14 @@ VisionCameraProxy::VisionCameraProxy(jsi::Runtime& runtime, std::shared_ptr<reac
     dispatch_async(CameraQueues.videoQueue, [f = std::move(f)]() { f(); });
   };
 
-  _workletContext = std::make_shared<RNWorklet::JsiWorkletContext>("VisionCamera", &runtime, runOnJS, runOnWorklet);
   NSLog(@"VisionCameraProxy: Worklet Context Created!");
 }
 
 VisionCameraProxy::~VisionCameraProxy() {
   NSLog(@"VisionCameraProxy: Destroying context...");
   // Destroy ArrayBuffer cache for both the JS and the Worklet Runtime.
-  vision::invalidateArrayBufferCache(*_workletContext->getJsRuntime());
-  vision::invalidateArrayBufferCache(_workletContext->getWorkletRuntime());
+//  vision::invalidateArrayBufferCache(*_workletContext->getJsRuntime());
+  vision::invalidateArrayBufferCache(_workletRuntime->getJSIRuntime());
 }
 
 std::vector<jsi::PropNameID> VisionCameraProxy::getPropertyNames(jsi::Runtime& runtime) {
@@ -69,16 +67,18 @@ std::vector<jsi::PropNameID> VisionCameraProxy::getPropertyNames(jsi::Runtime& r
   return result;
 }
 
-void VisionCameraProxy::setFrameProcessor(jsi::Runtime& runtime, int viewTag, const jsi::Object& object) {
+void VisionCameraProxy::setFrameProcessor(jsi::Runtime& runtime, int viewTag, const jsi::Object& object, const jsi::Value &workletRuntimeValue) {
   auto frameProcessorType = object.getProperty(runtime, "type").asString(runtime).utf8(runtime);
-  auto worklet = std::make_shared<RNWorklet::JsiWorklet>(runtime, object.getProperty(runtime, "frameProcessor"));
+  auto worklet = reanimated::extractShareableOrThrow<reanimated::ShareableWorklet>(runtime, object.getProperty(runtime, "frameProcessor"));
+
+  _workletRuntime = reanimated::extractWorkletRuntime(runtime, workletRuntimeValue);
 
   RCTExecuteOnMainQueue(^{
     auto currentBridge = [RCTBridge currentBridge];
     auto anonymousView = [currentBridge.uiManager viewForReactTag:[NSNumber numberWithDouble:viewTag]];
     auto view = static_cast<CameraView*>(anonymousView);
     if (frameProcessorType == "frame-processor") {
-      view.frameProcessor = [[FrameProcessor alloc] initWithWorklet:worklet context:_workletContext];
+      view.frameProcessor = [[FrameProcessor alloc] initWithWorklet:worklet context:_workletRuntime];
     } else {
       throw std::runtime_error("Unknown FrameProcessor.type passed! Received: " + frameProcessorType);
     }
@@ -115,7 +115,8 @@ jsi::Value VisionCameraProxy::get(jsi::Runtime& runtime, const jsi::PropNameID& 
         [this](jsi::Runtime& runtime, const jsi::Value& thisValue, const jsi::Value* arguments, size_t count) -> jsi::Value {
           auto viewTag = arguments[0].asNumber();
           auto object = arguments[1].asObject(runtime);
-          this->setFrameProcessor(runtime, static_cast<int>(viewTag), object);
+          const auto &workletRuntime = arguments[2];
+          this->setFrameProcessor(runtime, static_cast<int>(viewTag), object, workletRuntime);
           return jsi::Value::undefined();
         });
   }
