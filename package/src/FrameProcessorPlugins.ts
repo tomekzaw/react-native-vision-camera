@@ -9,6 +9,8 @@ import type { WorkletRuntime } from 'react-native-reanimated'
 import { CameraModule } from './NativeCameraModule'
 import { assertJSIAvailable } from './JSIHelper'
 import { ShareableRef } from 'react-native-reanimated/lib/typescript/reanimated2/commonTypes'
+import { runOnBackgroundQueue } from 'react-native-reanimated'
+import NativeReanimated from 'react-native-reanimated/src/reanimated2/NativeReanimated'
 
 type BasicParameterType = string | number | boolean | undefined
 type ParameterType = BasicParameterType | BasicParameterType[] | Record<string, BasicParameterType | undefined>
@@ -39,7 +41,9 @@ interface TVisionCameraProxy {
 }
 
 let hasWorklets = false
-let isAsyncContextBusy = { value: false }
+let asyncContext = null
+let backgroundQueue = null
+let isAsyncContextBusy = null
 let runOnAsyncContext = (_frame: Frame, _func: () => void): void => {
   throw new CameraRuntimeError(
     'system/frame-processors-unavailable',
@@ -51,23 +55,11 @@ try {
   assertJSIAvailable()
 
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { createWorkletRuntime, makeMutable } = require('react-native-reanimated') as typeof TReanimated
+  const { createWorkletRuntime, createBackgroundQueue } = require('react-native-reanimated') as typeof TReanimated
 
-  isAsyncContextBusy = makeMutable(false)
-  const asyncContext = createWorkletRuntime('VisionCamera.async')
-  runOnAsyncContext = (frame: Frame, func: () => void) => {
-    'worklet'
-    try {
-      // Call long-running function
-      func()
-    } finally {
-      // Potentially delete Frame if we were the last ref
-      const internal = frame as FrameInternal
-      internal.decrementRefCount()
-
-      isAsyncContextBusy.value = false
-    }
-  }
+  isAsyncContextBusy = NativeReanimated.makeSynchronizedDataHolder(NativeReanimated.makeShareableClone(false))
+  asyncContext = createWorkletRuntime('VisionCamera.async')
+  backgroundQueue = createBackgroundQueue('VisionCamera.background')
   hasWorklets = true
 } catch (e) {
   // Worklets are not installed, so Frame Processors are disabled.
@@ -186,7 +178,7 @@ export function runAtTargetFps<T>(fps: number, func: () => T): T | undefined {
 export function runAsync(frame: Frame, func: () => void): void {
   'worklet'
 
-  if (isAsyncContextBusy.value) {
+  if (_getDataSynchronously(isAsyncContextBusy)) {
     // async context is currently busy, we cannot schedule new work in time.
     // drop this frame/runAsync call.
     return
@@ -196,8 +188,19 @@ export function runAsync(frame: Frame, func: () => void): void {
   const internal = frame as FrameInternal
   internal.incrementRefCount()
 
-  isAsyncContextBusy.value = true
+  _updateDataSynchronously(isAsyncContextBusy, _makeShareableClone(true))
 
   // Call in separate background context
-  runOnAsyncContext(frame, func)
+  runOnBackgroundQueue(backgroundQueue, asyncContext, () => {
+    'worklet'
+    try {
+      // Call long-running function
+      func()
+    } finally {
+      // Potentially delete Frame if we were the last ref
+      const internal = frame as FrameInternal
+      internal.decrementRefCount()
+    }
+    _updateDataSynchronously(isAsyncContextBusy, _makeShareableClone(false))
+  })
 }
