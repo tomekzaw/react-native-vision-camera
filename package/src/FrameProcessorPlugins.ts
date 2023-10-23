@@ -184,14 +184,14 @@ export function runAsync(frame: Frame, func: () => void): void {
     return
   }
 
+  _updateDataSynchronously(isAsyncContextBusy, _makeShareableClone(true))
+
   // Increment ref count by one
   const internal = frame as FrameInternal
   internal.incrementRefCount()
 
-  _updateDataSynchronously(isAsyncContextBusy, _makeShareableClone(true))
-
   // Call in separate background context
-  runOnBackgroundQueue(backgroundQueue, asyncContext, () => {
+  runOnBackgroundQueue(backgroundQueue, asyncContext, (frame: Frame, func: () => void) => {
     'worklet'
     try {
       // Call long-running function
@@ -200,7 +200,7 @@ export function runAsync(frame: Frame, func: () => void): void {
       // Potentially delete Frame if we were the last ref
       const internal = frame as FrameInternal
       internal.decrementRefCount()
+      _updateDataSynchronously(isAsyncContextBusy, _makeShareableClone(false))
     }
-    _updateDataSynchronously(isAsyncContextBusy, _makeShareableClone(false))
-  })
+  })(frame, func)
 }

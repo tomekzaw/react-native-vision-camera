@@ -6,6 +6,7 @@ import {
   CameraRuntimeError,
   PhotoFile,
   runAsync,
+  runAtTargetFps,
   useCameraDevice,
   useCameraFormat,
   useFrameProcessor,
@@ -170,16 +171,16 @@ export function CameraPage({ navigation }: Props): React.ReactElement {
 
     console.log(`${frame.timestamp}: ${frame.width}x${frame.height} ${frame.pixelFormat} Frame (${frame.orientation})`)
 
-    // TODO: inject performance in worklet runtime
-    // runAtTargetFps(5, () => {
-    //   'worklet'
-    //   console.log('5 fps')
-    // })
+    runAtTargetFps(5, () => {
+      'worklet'
+      console.log('5 fps')
+    })
 
     runAsync(frame, () => {
       'worklet'
+      const until = performance.now() + 100;
+      while (performance.now() < until) {}
       console.log('async', Math.random())
-      for (let i = 0; i < 20000000; i++) {}
     })
 
     examplePlugin(frame)
