@@ -4,13 +4,11 @@ import { CameraRuntimeError } from './CameraError'
 
 // only import typescript types
 import type TReanimated from 'react-native-reanimated'
-import type { WorkletRuntime } from 'react-native-reanimated'
+import type { BackgroundQueue, WorkletRuntime } from 'react-native-reanimated'
+import type { ShareableRef, ShareableSyncDataHolderRef } from 'react-native-reanimated/lib/typescript/reanimated2/commonTypes'
 
 import { CameraModule } from './NativeCameraModule'
 import { assertJSIAvailable } from './JSIHelper'
-import { ShareableRef } from 'react-native-reanimated/lib/typescript/reanimated2/commonTypes'
-import { runOnBackgroundQueue } from 'react-native-reanimated'
-import NativeReanimated from 'react-native-reanimated/src/reanimated2/NativeReanimated'
 
 type BasicParameterType = string | number | boolean | undefined
 type ParameterType = BasicParameterType | BasicParameterType[] | Record<string, BasicParameterType | undefined>
@@ -48,9 +46,9 @@ interface TVisionCameraProxy {
 }
 
 let hasWorklets = false
-let asyncContext = null
-let backgroundQueue = null
-let isAsyncContextBusy = null
+let asyncContext: WorkletRuntime | null = null
+let backgroundQueue: BackgroundQueue | null = null
+let isAsyncContextBusy: ShareableSyncDataHolderRef<boolean> | null = null
 let runOnAsyncContext = (_frame: Frame, _func: () => void): void => {
   throw new CameraRuntimeError(
     'system/frame-processors-unavailable',
@@ -62,12 +60,42 @@ try {
   assertJSIAvailable()
 
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { createWorkletRuntime, createBackgroundQueue } = require('react-native-reanimated') as typeof TReanimated
+  const { createWorkletRuntime, createBackgroundQueue, runOnBackgroundQueue } = require('react-native-reanimated') as typeof TReanimated
+  const NativeReanimated = require('react-native-reanimated/src/reanimated2/NativeReanimated').default
 
   isAsyncContextBusy = NativeReanimated.makeSynchronizedDataHolder(NativeReanimated.makeShareableClone(false))
   asyncContext = createWorkletRuntime('VisionCamera.async')
-  backgroundQueue = createBackgroundQueue('VisionCamera.background')
+  backgroundQueue = createBackgroundQueue('VisionCamera.backgroundQueue')
   hasWorklets = true
+
+  runOnAsyncContext = (frame: Frame, func: () => void) => {
+    'worklet'
+    if (_getDataSynchronously(isAsyncContextBusy)) {
+      // async context is currently busy, we cannot schedule new work in time.
+      // drop this frame/runAsync call.
+      return
+    }
+
+    _updateDataSynchronously(isAsyncContextBusy, _makeShareableClone(true))
+
+    // Increment ref count by one
+    const internal = frame as FrameInternal
+    internal.incrementRefCount()
+
+    // Call in separate background context
+    runOnBackgroundQueue(backgroundQueue, asyncContext, (innerFrame: Frame, innerFunc: () => void) => {
+      'worklet'
+      try {
+        // Call long-running function
+        innerFunc()
+      } finally {
+        // Potentially delete Frame if we were the last ref
+        const internal = innerFrame as FrameInternal
+        internal.decrementRefCount()
+        _updateDataSynchronously(isAsyncContextBusy, _makeShareableClone(false))
+      }
+    })(frame, func)
+  }
 } catch (e) {
   // Worklets are not installed, so Frame Processors are disabled.
 }
@@ -196,30 +224,5 @@ export function runAtTargetFps<T>(fps: number, func: () => T): T | undefined {
  */
 export function runAsync(frame: Frame, func: () => void): void {
   'worklet'
-
-  if (_getDataSynchronously(isAsyncContextBusy)) {
-    // async context is currently busy, we cannot schedule new work in time.
-    // drop this frame/runAsync call.
-    return
-  }
-
-  _updateDataSynchronously(isAsyncContextBusy, _makeShareableClone(true))
-
-  // Increment ref count by one
-  const internal = frame as FrameInternal
-  internal.incrementRefCount()
-
-  // Call in separate background context
-  runOnBackgroundQueue(backgroundQueue, asyncContext, (frame: Frame, func: () => void) => {
-    'worklet'
-    try {
-      // Call long-running function
-      func()
-    } finally {
-      // Potentially delete Frame if we were the last ref
-      const internal = frame as FrameInternal
-      internal.decrementRefCount()
-      _updateDataSynchronously(isAsyncContextBusy, _makeShareableClone(false))
-    }
-  })(frame, func)
+  runOnAsyncContext(frame, func)
 }
