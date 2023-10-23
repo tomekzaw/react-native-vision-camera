@@ -22,7 +22,7 @@ def does_example_have_worklets_enabled(installer)
   if defined?($VCDisableFrameProcessors)
     forceDisableFrameProcessors = true
   end
-  has_worklets = ReactNativePodsUtils.has_pod(installer, "react-native-worklets-core") && !forceDisableFrameProcessors
+  has_worklets = ReactNativePodsUtils.has_pod(installer, "RNReanimated") && !forceDisableFrameProcessors
 end
 
 # 
