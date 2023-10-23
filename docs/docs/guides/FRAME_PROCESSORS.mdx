@@ -44,7 +44,7 @@ Frame processors are by far not limited to object detection, other examples incl
 * **ML** for **facial recognition**
 * Using **Tensorflow**, **MLKit Vision**, **Apple Vision** or other libraries
 * Creating **realtime video-chats** using **WebRTC** to directly send the camera frames over the network
-* Creating scanners for **QR codes**, **Barcodes** or even custom codes such as **Snapchat's SnapCodes** or **Apple's AppClips**
+* Creating scanners for custom codes such as **Snapchat's SnapCodes** or **Apple's AppClips**
 * Creating **snapchat-like filters**, e.g. draw a dog-mask filter over the user's face
 * Creating **color filters** with depth-detection
 * **Drawing** boxes, text, overlays, or colors on the screen in realtime
@@ -134,17 +134,17 @@ const onDraw = useDrawCallback((canvas) => {
 And you can also call back to the React-JS thread by using `createRunInJsFn(...)`:
 
 ```tsx
-const onQRCodeDetected = Worklets.createRunInJsFn((qrCode: string) => {
-  navigation.push("ProductPage", { productId: qrCode })
+const onFaceDetected = Worklets.createRunInJsFn((face: Face) => {
+  navigation.push("FiltersPage", { face: face })
 })
 
 const frameProcessor = useFrameProcessor((frame) => {
   'worklet'
-  const qrCodes = scanQRCodes(frame)
-  if (qrCodes.length > 0) {
-    onQRCodeDetected(qrCodes[0])
+  const faces = scanFaces(frame)
+  if (faces.length > 0) {
+    onFaceDetected(faces[0])
   }
-}, [onQRCodeDetected])
+}, [onFaceDetected])
 ```
 
 ## Threading
@@ -170,7 +170,7 @@ const frameProcessor = useFrameProcessor((frame) => {
 
 ### Running at a throttled FPS rate
 
-Some Frame Processor Plugins don't need to run on every Frame, for example a Frame Processor that detects the brightness in a Frame only needs to run twice per second. You can achieve this by using [`runAtTargetFps(..)`](/docs/api/#runAtTargetFps):
+Some Frame Processor Plugins don't need to run on every Frame, for example a Frame Processor that detects the brightness in a Frame only needs to run twice per second. You can achieve this by using [`runAtTargetFps(..)`](/docs/api/#runattargetfps):
 
 ```ts
 const frameProcessor = useFrameProcessor((frame) => {
@@ -223,7 +223,7 @@ Check out [Frame Processor community plugins](/docs/guides/frame-processor-plugi
 When running frame processors, it is often important to choose an appropriate [format](/docs/guides/formats). Here are some general tips to consider:
 
 * If you are running heavy AI/ML calculations in your frame processor, make sure to [select a format](/docs/guides/formats) that has a lower resolution to optimize it's performance. You can also resize the Frame on-demand.
-* Sometimes a frame processor plugin only works with specific [pixel formats](/docs/api/interfaces/CameraDeviceFormat#pixelformats). Some plugins (like Tensorflow Lite Models) don't work with `yuv`, so use a [`pixelFormat`](/docs/api/interfaces/CameraProps#pixelFormat) of `rgb` instead.
+* Sometimes a frame processor plugin only works with specific [pixel formats](/docs/api/interfaces/CameraDeviceFormat#pixelformats). Some plugins (like Tensorflow Lite Models) don't work with `yuv`, so use a [`pixelFormat`](/docs/api/interfaces/CameraProps#pixelformat) of `rgb` instead.
 * Some Frame Processor plugins don't work with HDR formats. In this case you need to disable [`hdr`](/docs/api/interfaces/CameraProps#hdr).
 
 ## Benchmarks

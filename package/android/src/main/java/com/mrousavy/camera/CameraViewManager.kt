@@ -5,11 +5,12 @@ import com.facebook.react.common.MapBuilder
 import com.facebook.react.uimanager.ThemedReactContext
 import com.facebook.react.uimanager.ViewGroupManager
 import com.facebook.react.uimanager.annotations.ReactProp
-import com.mrousavy.camera.parsers.Orientation
-import com.mrousavy.camera.parsers.PixelFormat
-import com.mrousavy.camera.parsers.ResizeMode
-import com.mrousavy.camera.parsers.Torch
-import com.mrousavy.camera.parsers.VideoStabilizationMode
+import com.mrousavy.camera.types.CodeScannerOptions
+import com.mrousavy.camera.types.Orientation
+import com.mrousavy.camera.types.PixelFormat
+import com.mrousavy.camera.types.ResizeMode
+import com.mrousavy.camera.types.Torch
+import com.mrousavy.camera.types.VideoStabilizationMode
 
 @Suppress("unused")
 class CameraViewManager : ViewGroupManager<CameraView>() {
@@ -27,6 +28,7 @@ class CameraViewManager : ViewGroupManager<CameraView>() {
       .put("cameraViewReady", MapBuilder.of("registrationName", "onViewReady"))
       .put("cameraInitialized", MapBuilder.of("registrationName", "onInitialized"))
       .put("cameraError", MapBuilder.of("registrationName", "onError"))
+      .put("cameraCodeScanned", MapBuilder.of("registrationName", "onCodeScanned"))
       .build()
 
   override fun getName(): String = TAG
@@ -198,6 +200,15 @@ class CameraViewManager : ViewGroupManager<CameraView>() {
       addChangedPropToTransaction(view, "orientation")
     }
     view.orientation = newMode
+  }
+
+  @ReactProp(name = "codeScannerOptions")
+  fun setCodeScanner(view: CameraView, codeScannerOptions: ReadableMap) {
+    val newCodeScannerOptions = CodeScannerOptions(codeScannerOptions)
+    if (view.codeScannerOptions != newCodeScannerOptions) {
+      addChangedPropToTransaction(view, "codeScannerOptions")
+    }
+    view.codeScannerOptions = newCodeScannerOptions
   }
 
   companion object {

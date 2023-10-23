@@ -34,7 +34,7 @@ For reference see the [CLI's docs](https://github.com/mateusz1913/vision-camera-
         protected List<ReactPackage> getPackages() {
           @SuppressWarnings("UnnecessaryLocalVariable")
           List<ReactPackage> packages = new PackageList(this).getPackages();
-          ...
+          // ...
           // highlight-next-line
           packages.add(new FaceDetectorFrameProcessorPluginPackage()); // <- add
           return packages;
@@ -56,13 +56,18 @@ For reference see the [CLI's docs](https://github.com/mateusz1913/vision-camera-
 3. Add the following code:
 
 ```java
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import com.mrousavy.camera.frameprocessor.Frame;
 import com.mrousavy.camera.frameprocessor.FrameProcessorPlugin;
 
 public class FaceDetectorFrameProcessorPlugin extends FrameProcessorPlugin {
+  FaceDetectorFrameProcessorPlugin(@Nullable Map<String, Object> options) {}
 
+  @Nullable
   @Override
-  public Object callback(Frame frame, Map<String, Object> arguments) {
+  public Object callback(@NonNull Frame frame, @Nullable Map<String, Object> arguments) {
+// highlight-next-line
     // code goes here
     return null;
   }
@@ -73,20 +78,20 @@ public class FaceDetectorFrameProcessorPlugin extends FrameProcessorPlugin {
 5. Create a new Java file which registers the Frame Processor Plugin in a React Package, for the Face Detector plugin this file will be called `FaceDetectorFrameProcessorPluginPackage.java`:
 
 ```java
+import androidx.annotation.NonNull;
 import com.facebook.react.ReactPackage;
 import com.facebook.react.bridge.NativeModule;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.uimanager.ViewManager;
 import com.mrousavy.camera.frameprocessor.FrameProcessorPlugin;
 import com.mrousavy.camera.frameprocessor.FrameProcessorPluginRegistry;
-import javax.annotation.Nonnull;
 
 public class FaceDetectorFrameProcessorPluginPackage implements ReactPackage {
-  FaceDetectorFrameProcessorPluginPackage() {
-    // highlight-start
-    FrameProcessorPluginRegistry.addFrameProcessorPlugin("detectFaces", options -> new FaceDetectorFrameProcessorPlugin());
-    // highlight-end
+  // highlight-start
+  static {
+    FrameProcessorPluginRegistry.addFrameProcessorPlugin("detectFaces", options -> new FaceDetectorFrameProcessorPlugin(options));
   }
+  // highlight-end
 
   @NonNull
   @Override
@@ -94,16 +99,16 @@ public class FaceDetectorFrameProcessorPluginPackage implements ReactPackage {
     return Collections.emptyList();
   }
 
-  @Nonnull
+  @NonNull
   @Override
-  public List<ViewManager> createViewManagers(@Nonnull ReactApplicationContext reactContext) {
+  public List<ViewManager> createViewManagers(@NonNull ReactApplicationContext reactContext) {
     return Collections.emptyList();
   }
 }
 ```
 
 :::note
-The Frame Processor Plugin will be exposed to JS through the `VisionCameraProxy` object. In this case, it would be `VisionCameraProxy.getFrameProcessorPlugin("detectFaces")`.
+The Frame Processor Plugin will be exposed to JS through the `VisionCameraProxy` object. In this case, it would be `VisionCameraProxy.initFrameProcessorPlugin("detectFaces")`.
 :::
 
 6. Register the package in MainApplication.java
@@ -113,7 +118,7 @@ The Frame Processor Plugin will be exposed to JS through the `VisionCameraProxy`
         protected List<ReactPackage> getPackages() {
           @SuppressWarnings("UnnecessaryLocalVariable")
           List<ReactPackage> packages = new PackageList(this).getPackages();
-          ...
+          // ...
           // highlight-next-line
           packages.add(new FaceDetectorFrameProcessorPluginPackage()); // <- add
           return packages;
@@ -131,16 +136,17 @@ The Frame Processor Plugin will be exposed to JS through the `VisionCameraProxy`
 import com.mrousavy.camera.frameprocessor.Frame
 import com.mrousavy.camera.frameprocessor.FrameProcessorPlugin
 
-class FaceDetectorFrameProcessorPlugin: FrameProcessorPlugin() {
+class FaceDetectorFrameProcessorPlugin(options: Map<String, Any>?): FrameProcessorPlugin(options) {
 
-  override fun callback(frame: Frame, arguments: Map<String, Object>): Any? {
+  override fun callback(frame: Frame, arguments: Map<String, Any>?): Any? {
+// highlight-next-line
     // code goes here
     return null
   }
 }
 ```
 
-4. **Implement your Frame Processing.** See the [Example Plugin (Java)](https://github.com/mrousavy/react-native-vision-camera/blob/main/package/example/android/app/src/main/java/com/mrousavy/camera/example/ExampleFrameProcessorPlugin.java) for reference.
+4. **Implement your Frame Processing.** See the [Example Plugin (Kotlin)](https://github.com/mrousavy/react-native-vision-camera/blob/main/package/example/android/app/src/main/java/com/mrousavy/camera/example/ExampleKotlinFrameProcessorPlugin.kt) for reference.
 5. Create a new Kotlin file which registers the Frame Processor Plugin in a React Package, for the Face Detector plugin this file will be called `FaceDetectorFrameProcessorPluginPackage.kt`:
 
 ```kotlin
@@ -151,13 +157,15 @@ import com.facebook.react.uimanager.ViewManager
 import com.mrousavy.camera.frameprocessor.FrameProcessorPlugin
 
 class FaceDetectorFrameProcessorPluginPackage : ReactPackage {
-  init {
-    // highlight-start
-    FrameProcessorPluginRegistry.addFrameProcessorPlugin("detectFaces") { options ->
-      FaceDetectorFrameProcessorPlugin()
+  // highlight-start
+  companion object {
+    init {
+      FrameProcessorPluginRegistry.addFrameProcessorPlugin("detectFaces") { options ->
+        FaceDetectorFrameProcessorPlugin(options)
+      }
     }
-    // highlight-end
   }
+  // highlight-end
 
   override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
     return emptyList()
@@ -170,7 +178,7 @@ class FaceDetectorFrameProcessorPluginPackage : ReactPackage {
 ```
 
 :::note
-The Frame Processor Plugin will be exposed to JS through the `VisionCameraProxy` object. In this case, it would be `VisionCameraProxy.getFrameProcessorPlugin("detectFaces")`.
+The Frame Processor Plugin will be exposed to JS through the `VisionCameraProxy` object. In this case, it would be `VisionCameraProxy.initFrameProcessorPlugin("detectFaces")`.
 :::
 
 6. Register the package in MainApplication.java
@@ -180,7 +188,7 @@ The Frame Processor Plugin will be exposed to JS through the `VisionCameraProxy`
         protected List<ReactPackage> getPackages() {
           @SuppressWarnings("UnnecessaryLocalVariable")
           List<ReactPackage> packages = new PackageList(this).getPackages();
-          ...
+          // ...
           // highlight-next-line
           packages.add(new FaceDetectorFrameProcessorPluginPackage()); // <- add
           return packages;

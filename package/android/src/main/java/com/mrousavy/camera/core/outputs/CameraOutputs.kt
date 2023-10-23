@@ -8,7 +8,9 @@ import android.media.ImageReader
 import android.util.Log
 import android.util.Size
 import android.view.Surface
-import com.mrousavy.camera.CameraQueues
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.mrousavy.camera.core.CameraQueues
+import com.mrousavy.camera.core.CodeScannerPipeline
 import com.mrousavy.camera.core.VideoPipeline
 import com.mrousavy.camera.extensions.bigger
 import com.mrousavy.camera.extensions.closestToOrMax
@@ -16,7 +18,8 @@ import com.mrousavy.camera.extensions.getPhotoSizes
 import com.mrousavy.camera.extensions.getPreviewTargetSize
 import com.mrousavy.camera.extensions.getVideoSizes
 import com.mrousavy.camera.extensions.smaller
-import com.mrousavy.camera.parsers.PixelFormat
+import com.mrousavy.camera.types.CodeScannerOptions
+import com.mrousavy.camera.types.PixelFormat
 import java.io.Closeable
 
 class CameraOutputs(
@@ -25,6 +28,7 @@ class CameraOutputs(
   val preview: PreviewOutput? = null,
   val photo: PhotoOutput? = null,
   val video: VideoOutput? = null,
+  val codeScanner: CodeScannerOutput? = null,
   val enableHdr: Boolean? = false,
   val callback: Callback
 ) : Closeable {
@@ -41,6 +45,11 @@ class CameraOutputs(
     val enableFrameProcessor: Boolean? = false,
     val format: PixelFormat = PixelFormat.NATIVE
   )
+  data class CodeScannerOutput(
+    val options: CodeScannerOptions,
+    val onCodeScanned: (codes: List<Barcode>) -> Unit,
+    val onError: (error: Throwable) -> Unit
+  )
 
   interface Callback {
     fun onPhotoCaptured(image: Image)
@@ -52,6 +61,8 @@ class CameraOutputs(
     private set
   var videoOutput: VideoPipelineOutput? = null
     private set
+  var codeScannerOutput: BarcodeScannerOutput? = null
+    private set
 
   val size: Int
     get() {
@@ -59,6 +70,7 @@ class CameraOutputs(
       if (previewOutput != null) size++
       if (photoOutput != null) size++
       if (videoOutput != null) size++
+      if (codeScannerOutput != null) size++
       return size
     }
 
@@ -72,6 +84,7 @@ class CameraOutputs(
       this.video?.enableRecording == other.video?.enableRecording &&
       this.video?.targetSize == other.video?.targetSize &&
       this.video?.format == other.video?.format &&
+      this.codeScanner?.options == other.codeScanner?.options &&
       this.enableHdr == other.enableHdr
   }
 
@@ -80,12 +93,15 @@ class CameraOutputs(
     result += (preview?.hashCode() ?: 0)
     result += (photo?.hashCode() ?: 0)
     result += (video?.hashCode() ?: 0)
+    result += (codeScanner?.hashCode() ?: 0)
     return result
   }
 
   override fun close() {
+    previewOutput?.close()
     photoOutput?.close()
     videoOutput?.close()
+    codeScannerOutput?.close()
   }
 
   override fun toString(): String {
@@ -93,6 +109,7 @@ class CameraOutputs(
     previewOutput?.let { strings.add(it.toString()) }
     photoOutput?.let { strings.add(it.toString()) }
     videoOutput?.let { strings.add(it.toString()) }
+    codeScannerOutput?.let { strings.add(it.toString()) }
     return strings.joinToString(", ", "[", "]")
   }
 
@@ -135,14 +152,24 @@ class CameraOutputs(
 
     // Video output: High resolution repeating images (startRecording() or useFrameProcessor())
     if (video != null) {
-      // TODO: Should this be dynamic?
-      val format = ImageFormat.YUV_420_888
+      val format = video.format.toImageFormat()
       val size = characteristics.getVideoSizes(cameraId, format).closestToOrMax(video.targetSize)
       val enableFrameProcessor = video.enableFrameProcessor ?: false
       val videoPipeline = VideoPipeline(size.width, size.height, video.format, isMirrored, enableFrameProcessor)
 
       Log.i(TAG, "Adding ${size.width}x${size.height} video output. (Format: ${video.format})")
       videoOutput = VideoPipelineOutput(videoPipeline, SurfaceOutput.OutputType.VIDEO)
+    }
+
+    // Code Scanner
+    if (codeScanner != null) {
+      val format = ImageFormat.YUV_420_888
+      val targetSize = Size(1280, 720)
+      val size = characteristics.getVideoSizes(cameraId, format).closestToOrMax(targetSize)
+      val pipeline = CodeScannerPipeline(size, format, codeScanner)
+
+      Log.i(TAG, "Adding ${size.width}x${size.height} code scanner output. (Code Types: ${codeScanner.options.codeTypes})")
+      codeScannerOutput = BarcodeScannerOutput(pipeline)
     }
 
     Log.i(TAG, "Prepared $size Outputs for Camera $cameraId!")

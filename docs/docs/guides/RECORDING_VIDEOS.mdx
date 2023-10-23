@@ -54,7 +54,7 @@ camera.current.startRecording({
 })
 ```
 
-You can customize capture options such as [video codec](/docs/api/interfaces/RecordVideoOptions#videoCodec), [video bit-rate](/docs/api/interfaces/RecordVideoOptions#videoBitRate), [file type](/docs/api/interfaces/RecordVideoOptions#fileType), [enable flash](/docs/api/interfaces/RecordVideoOptions#flash) and more using the [`RecordVideoOptions`](/docs/api/interfaces/RecordVideoOptions) parameter.
+You can customize capture options such as [video codec](/docs/api/interfaces/RecordVideoOptions#videocodec), [video bit-rate](/docs/api/interfaces/RecordVideoOptions#videobitrate), [file type](/docs/api/interfaces/RecordVideoOptions#filetype), [enable flash](/docs/api/interfaces/RecordVideoOptions#flash) and more using the [`RecordVideoOptions`](/docs/api/interfaces/RecordVideoOptions) parameter.
 
 For any error that occured _while recording the video_, the `onRecordingError` callback will be invoked with a [`CaptureError`](/docs/api/classes/CameraCaptureError) and the recording is therefore cancelled.
 
@@ -76,11 +76,24 @@ await camera.current.pauseRecording()
 await camera.current.resumeRecording()
 ```
 
+### Flash
+
+The [`startRecording(...)`](/docs/api/classes/Camera#startrecording) function can be configured to enable the [flash](/docs/api/interfaces/RecordVideoOptions#flash) while recording, which natively just enables the [`torch`](/docs/api/interfaces/CameraProps#torch) under the hood:
+
+```ts
+camera.current.startRecording({
+  flash: 'on',
+  ...
+})
+```
+
+Note that flash is only available on camera devices where [`hasTorch`](/docs/api/interfaces/CameraDevice#hastorch) is `true`; for example most front cameras don't have a torch.
+
 ### Video Codec
 
 By default, videos are recorded in the H.264 video codec which is a widely adopted video codec.
 
-VisionCamera also supports H.265 ([HEVC](https://en.wikipedia.org/wiki/High_Efficiency_Video_Coding)), which is much more efficient in encoding performance as well as an up to 50% smaller file size.
+VisionCamera also supports H.265 ([HEVC](https://en.wikipedia.org/wiki/High_Efficiency_Video_Coding)), which is much more efficient in encoding performance and can be up to 50% smaller in file size.
 If you can handle H.265 on your backend, configure the video recorder to encode in H.265:
 
 ```ts
@@ -94,7 +107,7 @@ camera.current.startRecording({
 
 Videos are recorded with a target bit-rate, which the encoder aims to match as closely as possible. A lower bit-rate means less quality (and less file size), a higher bit-rate means higher quality (and larger file size) since it can assign more bits to moving pixels.
 
-To simply record videos with higher quality, use a [`videoBitRate`](/docs/api/interfaces/RecordVideoOptions#videoBitRate) of `'high'`, which effectively increases the bit-rate by 20%:
+To simply record videos with higher quality, use a [`videoBitRate`](/docs/api/interfaces/RecordVideoOptions#videobitrate) of `'high'`, which effectively increases the bit-rate by 20%:
 
 ```ts
 camera.current.startRecording({
@@ -103,7 +116,7 @@ camera.current.startRecording({
 })
 ```
 
-To use a lower bit-rate for lower quality and lower file-size, use a [`videoBitRate`](/docs/api/interfaces/RecordVideoOptions#videoBitRate) of `'low'`, which effectively decreases the bit-rate by 20%:
+To use a lower bit-rate for lower quality and lower file-size, use a [`videoBitRate`](/docs/api/interfaces/RecordVideoOptions#videobitrate) of `'low'`, which effectively decreases the bit-rate by 20%:
 
 ```ts
 camera.current.startRecording({
@@ -164,4 +177,4 @@ camera.current.startRecording({
 
 <br />
 
-#### 🚀 Next section: [Frame Processors](frame-processors)
+#### 🚀 Next section: [QR/Barcode Scanning](code-scanning)

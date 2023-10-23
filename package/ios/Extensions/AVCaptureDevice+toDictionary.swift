@@ -10,6 +10,8 @@ import AVFoundation
 
 extension AVCaptureDevice {
   func toDictionary() -> [String: Any] {
+    let formats = formats.map { CameraDeviceFormat(fromFormat: $0) }
+
     return [
       "id": uniqueID,
       "physicalDevices": physicalDevices.map(\.deviceType.physicalDeviceDescriptor),
@@ -25,10 +27,10 @@ extension AVCaptureDevice {
       "supportsLowLightBoost": isLowLightBoostSupported,
       "supportsFocus": isFocusPointOfInterestSupported,
       "hardwareLevel": "full",
-      "sensorOrientation": "portrait", // TODO: Sensor Orientation?
-      "formats": formats.map { format -> [String: Any] in
-        format.toDictionary()
-      },
+      // TODO: Get orientation from `AVCaptureDevice.RotationCoordinator`, then just transform `AVAssetWriter`
+      // See https://github.com/mrousavy/react-native-vision-camera/issues/2046
+      "sensorOrientation": Orientation.landscapeRight.jsValue,
+      "formats": formats.map { $0.toJSValue() },
     ]
   }
 }

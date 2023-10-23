@@ -7,11 +7,13 @@ module.exports = {
       'guides/formats',
       'guides/taking-photos',
       'guides/recording-videos',
+      'guides/code-scanning',
       {
         type: 'category',
         label: 'Realtime Frame Processing',
         items: [
           'guides/frame-processors',
+          'guides/pixel-formats',
           'guides/frame-processors-tips',
           'guides/frame-processor-plugin-list',
           'guides/skia-frame-processors',

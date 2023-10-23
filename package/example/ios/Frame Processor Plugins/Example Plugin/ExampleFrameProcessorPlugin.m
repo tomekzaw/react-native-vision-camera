@@ -18,7 +18,14 @@
 
 @implementation ExampleFrameProcessorPlugin
 
-- (id)callback:(Frame *)frame withArguments:(NSArray<id> *)arguments {
+- (instancetype)initWithOptions:(NSDictionary* _Nullable)options
+{
+  self = [super initWithOptions:options];
+  NSLog(@"ExampleFrameProcessorPlugin initialized with options: %@", options);
+  return self;
+}
+
+- (id)callback:(Frame *)frame withArguments:(NSDictionary *)arguments {
   CVPixelBufferRef imageBuffer = CMSampleBufferGetImageBuffer(frame.buffer);
   NSLog(@"ExamplePlugin: %zu x %zu Image. Logging %lu parameters:", CVPixelBufferGetWidth(imageBuffer), CVPixelBufferGetHeight(imageBuffer), (unsigned long)arguments.count);
 
@@ -28,22 +35,17 @@
 
   return @{
     @"example_str": @"Test",
-    @"example_bool": @true,
+    @"example_bool": @(YES),
     @"example_double": @5.3,
     @"example_array": @[
       @"Hello",
-      @true,
+      @(YES),
       @17.38
     ]
   };
 }
 
-+ (void) load {
-  [FrameProcessorPluginRegistry addFrameProcessorPlugin:@"example_plugin"
-                                        withInitializer:^FrameProcessorPlugin*(NSDictionary* options) {
-    return [[ExampleFrameProcessorPlugin alloc] init];
-  }];
-}
+VISION_EXPORT_FRAME_PROCESSOR(ExampleFrameProcessorPlugin, example_plugin)
 
 @end
 #endif

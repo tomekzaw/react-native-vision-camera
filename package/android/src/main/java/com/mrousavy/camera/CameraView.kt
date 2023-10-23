@@ -13,7 +13,11 @@ import android.view.Surface
 import android.widget.FrameLayout
 import androidx.core.content.ContextCompat
 import com.facebook.react.bridge.ReadableMap
+import com.facebook.react.bridge.UiThreadUtil
+import com.mrousavy.camera.core.CameraPermissionError
+import com.mrousavy.camera.core.CameraQueues
 import com.mrousavy.camera.core.CameraSession
+import com.mrousavy.camera.core.NoCameraDeviceError
 import com.mrousavy.camera.core.PreviewView
 import com.mrousavy.camera.core.outputs.CameraOutputs
 import com.mrousavy.camera.extensions.bigger
@@ -22,13 +26,14 @@ import com.mrousavy.camera.extensions.getPreviewTargetSize
 import com.mrousavy.camera.extensions.installHierarchyFitter
 import com.mrousavy.camera.extensions.smaller
 import com.mrousavy.camera.frameprocessor.FrameProcessor
-import com.mrousavy.camera.parsers.Orientation
-import com.mrousavy.camera.parsers.PixelFormat
-import com.mrousavy.camera.parsers.ResizeMode
-import com.mrousavy.camera.parsers.Torch
-import com.mrousavy.camera.parsers.VideoStabilizationMode
+import com.mrousavy.camera.types.CodeScannerOptions
+import com.mrousavy.camera.types.Orientation
+import com.mrousavy.camera.types.PixelFormat
+import com.mrousavy.camera.types.ResizeMode
+import com.mrousavy.camera.types.Torch
+import com.mrousavy.camera.types.VideoStabilizationMode
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 //
@@ -41,13 +46,15 @@ import kotlinx.coroutines.launch
 // TODO: takePhoto() return with jsi::Value Image reference for faster capture
 
 @SuppressLint("ClickableViewAccessibility", "ViewConstructor", "MissingPermission")
-class CameraView(context: Context) : FrameLayout(context) {
+class CameraView(context: Context) :
+  FrameLayout(context),
+  CoroutineScope {
   companion object {
     const val TAG = "CameraView"
 
     private val propsThatRequirePreviewReconfiguration = arrayListOf("cameraId", "format", "resizeMode")
     private val propsThatRequireSessionReconfiguration =
-      arrayListOf("cameraId", "format", "photo", "video", "enableFrameProcessor", "pixelFormat")
+      arrayListOf("cameraId", "format", "photo", "video", "enableFrameProcessor", "codeScannerOptions", "pixelFormat")
     private val propsThatRequireFormatReconfiguration = arrayListOf("fps", "hdr", "videoStabilizationMode", "lowLightBoost")
   }
 
@@ -80,6 +87,9 @@ class CameraView(context: Context) : FrameLayout(context) {
   var orientation: Orientation? = null
   var enableZoomGesture: Boolean = false
 
+  // code scanner
+  var codeScannerOptions: CodeScannerOptions? = null
+
   // private properties
   private var isMounted = false
   internal val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
@@ -100,8 +110,11 @@ class CameraView(context: Context) : FrameLayout(context) {
   internal val outputOrientation: Orientation
     get() = orientation ?: inputOrientation
 
+  override val coroutineContext: CoroutineContext = CameraQueues.cameraQueue.coroutineDispatcher
+
   init {
     this.installHierarchyFitter()
+    clipToOutline = true
     setupPreviewView()
     cameraSession = CameraSession(context, cameraManager, { invokeOnInitialized() }, { error -> invokeOnError(error) })
   }
@@ -112,12 +125,12 @@ class CameraView(context: Context) : FrameLayout(context) {
       isMounted = true
       invokeOnViewReady()
     }
-    updateLifecycle()
+    launch { updateLifecycle() }
   }
 
   override fun onDetachedFromWindow() {
     super.onDetachedFromWindow()
-    updateLifecycle()
+    launch { updateLifecycle() }
   }
 
   private fun getPreviewTargetSize(): Size {
@@ -138,57 +151,62 @@ class CameraView(context: Context) : FrameLayout(context) {
 
     val previewView = PreviewView(context, this.getPreviewTargetSize(), resizeMode) { surface ->
       previewSurface = surface
-      configureSession()
+      launch { configureSession() }
     }
     previewView.layoutParams = LayoutParams(
       LayoutParams.MATCH_PARENT,
       LayoutParams.MATCH_PARENT,
       Gravity.CENTER
     )
-    addView(previewView)
     this.previewView = previewView
+    UiThreadUtil.runOnUiThread {
+      addView(previewView)
+    }
   }
 
   fun update(changedProps: ArrayList<String>) {
     Log.i(TAG, "Props changed: $changedProps")
-    try {
-      val shouldReconfigurePreview = changedProps.containsAny(propsThatRequirePreviewReconfiguration)
-      val shouldReconfigureSession = shouldReconfigurePreview || changedProps.containsAny(propsThatRequireSessionReconfiguration)
-      val shouldReconfigureFormat = shouldReconfigureSession || changedProps.containsAny(propsThatRequireFormatReconfiguration)
-      val shouldReconfigureZoom = shouldReconfigureSession || changedProps.contains("zoom")
-      val shouldReconfigureTorch = shouldReconfigureSession || changedProps.contains("torch")
-      val shouldCheckActive = shouldReconfigureFormat || changedProps.contains("isActive")
-      val shouldReconfigureZoomGesture = changedProps.contains("enableZoomGesture")
+    val shouldReconfigurePreview = changedProps.containsAny(propsThatRequirePreviewReconfiguration)
+    val shouldReconfigureSession = shouldReconfigurePreview || changedProps.containsAny(propsThatRequireSessionReconfiguration)
+    val shouldReconfigureFormat = shouldReconfigureSession || changedProps.containsAny(propsThatRequireFormatReconfiguration)
+    val shouldReconfigureZoom = shouldReconfigureSession || changedProps.contains("zoom")
+    val shouldReconfigureTorch = shouldReconfigureSession || changedProps.contains("torch")
+    val shouldCheckActive = shouldReconfigureFormat || changedProps.contains("isActive")
+    val shouldReconfigureZoomGesture = changedProps.contains("enableZoomGesture")
 
-      if (shouldReconfigurePreview) {
-        setupPreviewView()
+    launch {
+      try {
+        // Expensive Calls
+        if (shouldReconfigurePreview) {
+          setupPreviewView()
+        }
+        if (shouldReconfigureSession) {
+          configureSession()
+        }
+        if (shouldReconfigureFormat) {
+          configureFormat()
+        }
+        if (shouldCheckActive) {
+          updateLifecycle()
+        }
+        // Fast Calls
+        if (shouldReconfigureZoom) {
+          updateZoom()
+        }
+        if (shouldReconfigureTorch) {
+          updateTorch()
+        }
+        if (shouldReconfigureZoomGesture) {
+          updateZoomGesture()
+        }
+      } catch (e: Throwable) {
+        Log.e(TAG, "update() threw: ${e.message}")
+        invokeOnError(e)
       }
-      if (shouldReconfigureSession) {
-        configureSession()
-      }
-      if (shouldReconfigureFormat) {
-        configureFormat()
-      }
-      if (shouldCheckActive) {
-        updateLifecycle()
-      }
-
-      if (shouldReconfigureZoom) {
-        updateZoom()
-      }
-      if (shouldReconfigureTorch) {
-        updateTorch()
-      }
-      if (shouldReconfigureZoomGesture) {
-        updateZoomGesture()
-      }
-    } catch (e: Throwable) {
-      Log.e(TAG, "update() threw: ${e.message}")
-      invokeOnError(e)
     }
   }
 
-  private fun configureSession() {
+  private suspend fun configureSession() {
     try {
       Log.i(TAG, "Configuring Camera Device...")
 
@@ -202,6 +220,7 @@ class CameraView(context: Context) : FrameLayout(context) {
       val targetPhotoSize = if (format != null) Size(format.getInt("photoWidth"), format.getInt("photoHeight")) else null
       // TODO: Allow previewSurface to be null/none
       val previewSurface = previewSurface ?: return
+      val codeScannerOptions = codeScannerOptions
 
       val previewOutput = CameraOutputs.PreviewOutput(previewSurface, previewView?.targetSize)
       val photoOutput = if (photo == true) {
@@ -214,30 +233,37 @@ class CameraView(context: Context) : FrameLayout(context) {
       } else {
         null
       }
+      val codeScanner = if (codeScannerOptions != null) {
+        CameraOutputs.CodeScannerOutput(
+          codeScannerOptions,
+          { codes -> invokeOnCodeScanned(codes) },
+          { error -> invokeOnError(error) }
+        )
+      } else {
+        null
+      }
 
-      cameraSession.configureSession(cameraId, previewOutput, photoOutput, videoOutput)
+      cameraSession.configureSession(cameraId, previewOutput, photoOutput, videoOutput, codeScanner)
     } catch (e: Throwable) {
       Log.e(TAG, "Failed to configure session: ${e.message}", e)
       invokeOnError(e)
     }
   }
 
-  private fun configureFormat() {
+  private suspend fun configureFormat() {
     cameraSession.configureFormat(fps, videoStabilizationMode, hdr, lowLightBoost)
   }
 
-  private fun updateLifecycle() {
+  private suspend fun updateLifecycle() {
     cameraSession.setIsActive(isActive && isAttachedToWindow)
   }
 
-  private fun updateZoom() {
+  private suspend fun updateZoom() {
     cameraSession.setZoom(zoom)
   }
 
-  private fun updateTorch() {
-    CoroutineScope(Dispatchers.Default).launch {
-      cameraSession.setTorchMode(torch == Torch.ON)
-    }
+  private suspend fun updateTorch() {
+    cameraSession.setTorchMode(torch == Torch.ON)
   }
 
   @SuppressLint("ClickableViewAccessibility")
@@ -248,7 +274,7 @@ class CameraView(context: Context) : FrameLayout(context) {
         object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
           override fun onScale(detector: ScaleGestureDetector): Boolean {
             zoom *= detector.scaleFactor
-            cameraSession.setZoom(zoom)
+            launch { updateZoom() }
             return true
           }
         }

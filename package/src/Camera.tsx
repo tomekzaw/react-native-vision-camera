@@ -11,6 +11,7 @@ import type { RecordVideoOptions, VideoFile } from './VideoFile'
 import { VisionCameraProxy } from './FrameProcessorPlugins'
 import { CameraDevices } from './CameraDevices'
 import type { EmitterSubscription } from 'react-native'
+import { Code, CodeScanner } from './CodeScanner'
 import { createWorkletRuntime, makeShareableCloneRecursive } from 'react-native-reanimated'
 import { Frame } from './Frame'
 
@@ -18,16 +19,21 @@ import { Frame } from './Frame'
 export type CameraPermissionStatus = 'granted' | 'not-determined' | 'denied' | 'restricted'
 export type CameraPermissionRequestResult = 'granted' | 'denied'
 
+interface OnCodeScannedEvent {
+  codes: Code[]
+}
 interface OnErrorEvent {
   code: string
   message: string
   cause?: ErrorWithCause
 }
-type NativeCameraViewProps = Omit<CameraProps, 'device' | 'onInitialized' | 'onError' | 'frameProcessor'> & {
+type NativeCameraViewProps = Omit<CameraProps, 'device' | 'onInitialized' | 'onError' | 'frameProcessor' | 'codeScanner'> & {
   cameraId: string
   enableFrameProcessor: boolean
+  codeScannerOptions?: Omit<CodeScanner, 'onCodeScanned'>
   onInitialized?: (event: NativeSyntheticEvent<void>) => void
   onError?: (event: NativeSyntheticEvent<OnErrorEvent>) => void
+  onCodeScanned?: (event: NativeSyntheticEvent<OnCodeScannedEvent>) => void
   onViewReady: () => void
 }
 type RefType = React.Component<NativeCameraViewProps> & Readonly<NativeMethods>
@@ -78,6 +84,7 @@ export class Camera extends React.PureComponent<CameraProps> {
     this.onViewReady = this.onViewReady.bind(this)
     this.onInitialized = this.onInitialized.bind(this)
     this.onError = this.onError.bind(this)
+    this.onCodeScanned = this.onCodeScanned.bind(this)
     this.ref = React.createRef<RefType>()
     this.lastFrameProcessor = undefined
   }
@@ -389,6 +396,13 @@ export class Camera extends React.PureComponent<CameraProps> {
   }
   //#endregion
 
+  private onCodeScanned(event: NativeSyntheticEvent<OnCodeScannedEvent>): void {
+    const codeScanner = this.props.codeScanner
+    if (codeScanner == null) return
+
+    codeScanner.onCodeScanned(event.nativeEvent.codes)
+  }
+
   //#region Lifecycle
   private setFrameProcessor(frameProcessor: FrameProcessor): void {
     const worklet = makeShareableCloneRecursive<(frame: Frame) => void>(frameProcessor.frameProcessor)
@@ -427,7 +441,7 @@ export class Camera extends React.PureComponent<CameraProps> {
   /** @internal */
   public render(): React.ReactNode {
     // We remove the big `device` object from the props because we only need to pass `cameraId` to native.
-    const { device, frameProcessor, ...props } = this.props
+    const { device, frameProcessor, codeScanner, ...props } = this.props
 
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (device == null) {
@@ -445,7 +459,9 @@ export class Camera extends React.PureComponent<CameraProps> {
         ref={this.ref}
         onViewReady={this.onViewReady}
         onInitialized={this.onInitialized}
+        onCodeScanned={this.onCodeScanned}
         onError={this.onError}
+        codeScannerOptions={codeScanner}
         enableFrameProcessor={frameProcessor != null}
         enableBufferCompression={props.enableBufferCompression ?? shouldEnableBufferCompression}
       />

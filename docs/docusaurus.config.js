@@ -1,6 +1,6 @@
 module.exports = {
   title: 'VisionCamera',
-  tagline: '📸 The Camera library that sees the vision.',
+  tagline: '📸 A powerful, high-performance React Native Camera library.',
   url: 'https://react-native-vision-camera.com',
   baseUrl: '/',
   onBrokenLinks: 'throw',
@@ -108,8 +108,12 @@ module.exports = {
     image: 'img/11.png',
     metadata: [
       {
+        name: 'author',
+        content: 'Marc Rousavy'
+      },
+      {
         name: 'keywords',
-        content: 'documentation, coding, docs, guides, camera, react, native, react-native'
+        content: 'react, native, camera, react-native, react-native-camera, photo, record, video, react-native-vision-camera, VisionCamera, frame-processor, frame-processing, frame, qr, qr-code, barcode, scanning, detector, detection, documentation, coding, docs, guides, marc, rousavy, mrousavy'
       },
       {
         name: 'og:title',
@@ -121,7 +125,7 @@ module.exports = {
       },
       {
         name: 'og:description',
-        content: '📸 The Camera library that sees the vision.'
+        content: 'A powerful, high-performance React Native Camera library.'
       },
       {
         name: 'og:image',

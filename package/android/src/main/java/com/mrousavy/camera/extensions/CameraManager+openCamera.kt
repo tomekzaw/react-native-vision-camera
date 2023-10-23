@@ -5,10 +5,10 @@ import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.os.Build
 import android.util.Log
-import com.mrousavy.camera.CameraCannotBeOpenedError
-import com.mrousavy.camera.CameraDisconnectedError
-import com.mrousavy.camera.CameraQueues
-import com.mrousavy.camera.parsers.CameraDeviceError
+import com.mrousavy.camera.core.CameraCannotBeOpenedError
+import com.mrousavy.camera.core.CameraDisconnectedError
+import com.mrousavy.camera.core.CameraQueues
+import com.mrousavy.camera.types.CameraDeviceError
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.suspendCancellableCoroutine

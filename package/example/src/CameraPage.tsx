@@ -26,6 +26,8 @@ import type { Routes } from './Routes'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { useIsFocused } from '@react-navigation/core'
 import { examplePlugin } from './frame-processors/ExamplePlugin'
+import { exampleKotlinSwiftPlugin } from './frame-processors/ExampleKotlinSwiftPlugin'
+import { usePreferredCameraDevice } from './hooks/usePreferredCameraDevice'
 
 const ReanimatedCamera = Reanimated.createAnimatedComponent(Camera)
 Reanimated.addWhitelistedNativeProps({
@@ -53,10 +55,14 @@ export function CameraPage({ navigation }: Props): React.ReactElement {
   const [flash, setFlash] = useState<'off' | 'on'>('off')
   const [enableNightMode, setEnableNightMode] = useState(false)
 
-  // camera format settings
-  const device = useCameraDevice(cameraPosition, {
-    physicalDevices: ['ultra-wide-angle-camera', 'wide-angle-camera', 'telephoto-camera'],
-  })
+  // camera device settings
+  const [preferredDevice] = usePreferredCameraDevice()
+  let device = useCameraDevice(cameraPosition)
+
+  if (preferredDevice != null && preferredDevice.position === cameraPosition) {
+    // override default device with the one selected by the user in settings
+    device = preferredDevice
+  }
 
   const [targetFps, setTargetFps] = useState(60)
 
@@ -157,14 +163,13 @@ export function CameraPage({ navigation }: Props): React.ReactElement {
   })
   //#endregion
 
-  if (device != null && format != null) {
-    console.log(
-      `Re-rendering camera page with ${isActive ? 'active' : 'inactive'} camera. ` +
-        `Device: "${device.name}" (${format.photoWidth}x${format.photoHeight} photo / ${format.videoWidth}x${format.videoHeight} video @ ${fps}fps)`,
-    )
-  } else {
-    console.log('re-rendering camera page without active camera')
-  }
+  useEffect(() => {
+    const f =
+      format != null
+        ? `(${format.photoWidth}x${format.photoHeight} photo / ${format.videoWidth}x${format.videoHeight}@${format.maxFps} video @ ${fps}fps)`
+        : undefined
+    console.log(`Camera: ${device?.name} | Format: ${f}`)
+  }, [device?.name, format, fps])
 
   const frameProcessor = useFrameProcessor((frame) => {
     'worklet'
@@ -184,6 +189,7 @@ export function CameraPage({ navigation }: Props): React.ReactElement {
     })
 
     examplePlugin(frame)
+    exampleKotlinSwiftPlugin(frame)
   }, [])
 
   return (
@@ -255,6 +261,9 @@ export function CameraPage({ navigation }: Props): React.ReactElement {
             <IonIcon name={enableNightMode ? 'moon' : 'moon-outline'} color="white" size={24} />
           </PressableOpacity>
         )}
+        <PressableOpacity style={styles.button} onPress={() => navigation.navigate('Devices')}>
+          <IonIcon name="settings-outline" color="white" size={24} />
+        </PressableOpacity>
       </View>
     </View>
   )

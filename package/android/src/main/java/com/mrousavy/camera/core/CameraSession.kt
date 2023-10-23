@@ -16,15 +16,7 @@ import android.os.Build
 import android.util.Log
 import android.util.Range
 import android.util.Size
-import com.mrousavy.camera.CameraNotReadyError
-import com.mrousavy.camera.CameraQueues
 import com.mrousavy.camera.CameraView
-import com.mrousavy.camera.CaptureAbortedError
-import com.mrousavy.camera.NoRecordingInProgressError
-import com.mrousavy.camera.PhotoNotEnabledError
-import com.mrousavy.camera.RecorderError
-import com.mrousavy.camera.RecordingInProgressError
-import com.mrousavy.camera.VideoNotEnabledError
 import com.mrousavy.camera.core.outputs.CameraOutputs
 import com.mrousavy.camera.extensions.capture
 import com.mrousavy.camera.extensions.createCaptureSession
@@ -32,17 +24,14 @@ import com.mrousavy.camera.extensions.createPhotoCaptureRequest
 import com.mrousavy.camera.extensions.openCamera
 import com.mrousavy.camera.extensions.setZoom
 import com.mrousavy.camera.frameprocessor.FrameProcessor
-import com.mrousavy.camera.parsers.Flash
-import com.mrousavy.camera.parsers.Orientation
-import com.mrousavy.camera.parsers.QualityPrioritization
-import com.mrousavy.camera.parsers.VideoCodec
-import com.mrousavy.camera.parsers.VideoFileType
-import com.mrousavy.camera.parsers.VideoStabilizationMode
+import com.mrousavy.camera.types.Flash
+import com.mrousavy.camera.types.Orientation
+import com.mrousavy.camera.types.QualityPrioritization
+import com.mrousavy.camera.types.VideoCodec
+import com.mrousavy.camera.types.VideoFileType
+import com.mrousavy.camera.types.VideoStabilizationMode
 import java.io.Closeable
 import java.util.concurrent.CancellationException
-import kotlin.coroutines.CoroutineContext
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -52,7 +41,6 @@ class CameraSession(
   private val onInitialized: () -> Unit,
   private val onError: (e: Throwable) -> Unit
 ) : CameraManager.AvailabilityCallback(),
-  CoroutineScope,
   Closeable,
   CameraOutputs.Callback {
   companion object {
@@ -112,8 +100,6 @@ class CameraSession(
       updateVideoOutputs()
     }
 
-  override val coroutineContext: CoroutineContext = CameraQueues.cameraQueue.coroutineDispatcher
-
   init {
     cameraManager.registerAvailabilityCallback(this, CameraQueues.cameraQueue.handler)
   }
@@ -135,11 +121,12 @@ class CameraSession(
       return Orientation.fromRotationDegrees(sensorRotation)
     }
 
-  fun configureSession(
+  suspend fun configureSession(
     cameraId: String,
     preview: CameraOutputs.PreviewOutput? = null,
     photo: CameraOutputs.PhotoOutput? = null,
-    video: CameraOutputs.VideoOutput? = null
+    video: CameraOutputs.VideoOutput? = null,
+    codeScanner: CameraOutputs.CodeScannerOutput? = null
   ) {
     Log.i(TAG, "Configuring Session for Camera $cameraId...")
     val outputs = CameraOutputs(
@@ -148,6 +135,7 @@ class CameraSession(
       preview,
       photo,
       video,
+      codeScanner,
       hdr == true,
       this
     )
@@ -163,12 +151,10 @@ class CameraSession(
     updateVideoOutputs()
 
     this.cameraId = cameraId
-    launch {
-      startRunning()
-    }
+    startRunning()
   }
 
-  fun configureFormat(
+  suspend fun configureFormat(
     fps: Int? = null,
     videoStabilizationMode: VideoStabilizationMode? = null,
     hdr: Boolean? = null,
@@ -184,40 +170,38 @@ class CameraSession(
     val currentOutputs = outputs
     if (currentOutputs != null && currentOutputs.enableHdr != hdr) {
       // Update existing HDR for Outputs
+      this.outputs?.close()
       this.outputs = CameraOutputs(
         currentOutputs.cameraId,
         cameraManager,
         currentOutputs.preview,
         currentOutputs.photo,
         currentOutputs.video,
+        currentOutputs.codeScanner,
         hdr,
         this
       )
       needsReconfiguration = true
     }
-    launch {
-      if (needsReconfiguration) {
-        startRunning()
-      } else {
-        updateRepeatingRequest()
-      }
+    if (needsReconfiguration) {
+      startRunning()
+    } else {
+      updateRepeatingRequest()
     }
   }
 
   /**
    * Starts or stops the Camera.
    */
-  fun setIsActive(isActive: Boolean) {
+  suspend fun setIsActive(isActive: Boolean) {
     Log.i(TAG, "Setting isActive: $isActive (isRunning: $isRunning)")
     this.isActive = isActive
     if (isActive == isRunning) return
 
-    launch {
-      if (isActive) {
-        startRunning()
-      } else {
-        stopRunning()
-      }
+    if (isActive) {
+      startRunning()
+    } else {
+      stopRunning()
     }
   }
 
@@ -325,12 +309,10 @@ class CameraSession(
     }
   }
 
-  fun setZoom(zoom: Float) {
+  suspend fun setZoom(zoom: Float) {
     if (this.zoom != zoom) {
       this.zoom = zoom
-      launch {
-        updateRepeatingRequest()
-      }
+      updateRepeatingRequest()
     }
   }
 
@@ -500,6 +482,9 @@ class CameraSession(
     cameraDevice?.close()
     cameraDevice = null
 
+    outputs?.close()
+    outputs = null
+
     isRunning = false
   }
 
@@ -534,11 +519,15 @@ class CameraSession(
         val template = if (outputs.videoOutput != null) CameraDevice.TEMPLATE_RECORD else CameraDevice.TEMPLATE_PREVIEW
         val captureRequest = camera.createCaptureRequest(template)
         outputs.previewOutput?.let { output ->
-          Log.i(TAG, "Adding output surface ${output.outputType}..")
+          Log.i(TAG, "Adding preview output surface ${output.outputType}..")
           captureRequest.addTarget(output.surface)
         }
         outputs.videoOutput?.let { output ->
-          Log.i(TAG, "Adding output surface ${output.outputType}..")
+          Log.i(TAG, "Adding video output surface ${output.outputType}..")
+          captureRequest.addTarget(output.surface)
+        }
+        outputs.codeScannerOutput?.let { output ->
+          Log.i(TAG, "Adding code scanner output surface ${output.outputType}")
           captureRequest.addTarget(output.surface)
         }
 
@@ -568,8 +557,9 @@ class CameraSession(
       val videoStabilizationMode = videoStabilizationMode
       val lowLightBoost = lowLightBoost
       val hdr = hdr
+      val enableTorch = enableTorch
 
-      val repeatingRequest = getPreviewCaptureRequest(fps, videoStabilizationMode, lowLightBoost, hdr)
+      val repeatingRequest = getPreviewCaptureRequest(fps, videoStabilizationMode, lowLightBoost, hdr, enableTorch)
       Log.d(TAG, "Setting Repeating Request..")
       session.setRepeatingRequest(repeatingRequest, null, null)
     }

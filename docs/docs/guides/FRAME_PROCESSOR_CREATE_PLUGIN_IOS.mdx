@@ -51,8 +51,8 @@ For reference see the [CLI's docs](https://github.com/mateusz1913/vision-camera-
 
 @implementation FaceDetectorFrameProcessorPlugin
 
-- (instancetype) initWithOptions:(NSDictionary*)options; {
-  self = [super init];
+- (instancetype) initWithOptions:(NSDictionary* _Nullable)options; {
+  self = [super initWithOptions:options];
   return self;
 }
 
@@ -60,26 +60,21 @@ For reference see the [CLI's docs](https://github.com/mateusz1913/vision-camera-
   CMSampleBufferRef buffer = frame.buffer;
   UIImageOrientation orientation = frame.orientation;
   // code goes here
-  return @[];
+  return nil;
 }
 
-+ (void) load {
-  // highlight-start
-  [FrameProcessorPluginRegistry addFrameProcessorPlugin:@"detectFaces"
-                                        withInitializer:^FrameProcessorPlugin*(NSDictionary* options) {
-    return [[FaceDetectorFrameProcessorPlugin alloc] initWithOptions:options];
-  }];
-  // highlight-end
-}
+// highlight-start
+VISION_EXPORT_FRAME_PROCESSOR(FaceDetectorFrameProcessorPlugin, detectFaces)
+// highlight-end
 
 @end
 ```
 
 :::note
-The Frame Processor Plugin will be exposed to JS through the `VisionCameraProxy` object. In this case, it would be `VisionCameraProxy.getFrameProcessorPlugin("detectFaces")`.
+The Frame Processor Plugin will be exposed to JS through the `VisionCameraProxy` object. In this case, it would be `VisionCameraProxy.initFrameProcessorPlugin("detectFaces")`.
 :::
 
-4. **Implement your Frame Processing.** See the [Example Plugin (Objective-C)](https://github.com/mrousavy/react-native-vision-camera/blob/main/package/example/ios/Frame%20Processor%20Plugins/Example%20Plugin%20%28Objective%2DC%29) for reference.
+4. **Implement your Frame Processing.** See the [Example Plugin (Objective-C)](https://github.com/mrousavy/react-native-vision-camera/blob/main/package/example/ios/Frame%20Processor%20Plugins/Example%20Plugin/ExampleFrameProcessorPlugin.m) for reference.
 
 </TabItem>
 <TabItem value="swift">
@@ -89,56 +84,40 @@ The Frame Processor Plugin will be exposed to JS through the `VisionCameraProxy`
 
 ![Xcode "Create Bridging Header" alert](https://docs-assets.developer.apple.com/published/7ebca7212c/2a065d1a-7e53-4907-a889-b7fa4f2206c9.png)
 
-3. Inside the newly created Bridging Header, add the following code:
-
-```objc
-#import <VisionCamera/FrameProcessorPlugin.h>
-#import <VisionCamera/Frame.h>
-```
-
-4. In the Swift file, add the following code:
+3. In the Swift file, add the following code:
 
 ```swift
+import VisionCamera
+
 @objc(FaceDetectorFrameProcessorPlugin)
 public class FaceDetectorFrameProcessorPlugin: FrameProcessorPlugin {
+  public override init(options: [AnyHashable : Any]! = [:]) {
+    super.init(options: options)
+  }
 
-  public override func callback(_ frame: Frame!,
-                                withArguments arguments: [String:Any]) -> Any {
+  public override func callback(_ frame: Frame, withArguments arguments: [AnyHashable : Any]?) -> Any {
     let buffer = frame.buffer
     let orientation = frame.orientation
     // code goes here
-    return []
+    return nil
   }
 }
 ```
 
-5. In your `AppDelegate.m`, add the following imports:
+4. Create an Objective-C source file that will be used to automatically register your plugin
 
 ```objc
-#import "YOUR_XCODE_PROJECT_NAME-Swift.h"
 #import <VisionCamera/FrameProcessorPlugin.h>
 #import <VisionCamera/FrameProcessorPluginRegistry.h>
+
+#import "YOUR_XCODE_PROJECT_NAME-Swift.h" // <--- replace "YOUR_XCODE_PROJECT_NAME" with the actual value of your xcode project name
+
+// highlight-start
+VISION_EXPORT_SWIFT_FRAME_PROCESSOR(FaceDetectorFrameProcessorPlugin, detectFaces)
+// highlight-end
 ```
 
-6. In your `AppDelegate.m`, add the following code to `application:didFinishLaunchingWithOptions:`:
-
-```objc
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
-{
-  // ...
-
-  // highlight-start
-  [FrameProcessorPluginRegistry addFrameProcessorPlugin:@"detectFaces"
-                                        withInitializer:^FrameProcessorPlugin*(NSDictionary* options) {
-    return [[FaceDetectorFrameProcessorPlugin alloc] initWithOptions:options];
-  }];
-  // highlight-end
-
-  return [super application:application didFinishLaunchingWithOptions:launchOptions];
-}
-```
-
-7. **Implement your frame processing.** See [Example Plugin (Swift)](https://github.com/mrousavy/react-native-vision-camera/blob/main/package/example/ios/Frame%20Processor%20Plugins/Example%20Plugin%20%28Swift%29) for reference.
+5. **Implement your frame processing.** See [Example Plugin (Swift)](https://github.com/mrousavy/react-native-vision-camera/blob/main/package/example/ios/Frame%20Processor%20Plugins/Example%20Swift%20Plugin/ExampleSwiftFrameProcessor.swift) for reference.
 
 
 </TabItem>

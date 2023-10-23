@@ -8,8 +8,8 @@ import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.camera2.params.SessionConfiguration
 import android.os.Build
 import android.util.Log
-import com.mrousavy.camera.CameraQueues
-import com.mrousavy.camera.CameraSessionCannotBeConfiguredError
+import com.mrousavy.camera.core.CameraQueues
+import com.mrousavy.camera.core.CameraSessionCannotBeConfiguredError
 import com.mrousavy.camera.core.outputs.CameraOutputs
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -60,6 +60,9 @@ suspend fun CameraDevice.createCaptureSession(
       outputConfigurations.add(output.toOutputConfiguration(characteristics))
     }
     outputs.videoOutput?.let { output ->
+      outputConfigurations.add(output.toOutputConfiguration(characteristics))
+    }
+    outputs.codeScannerOutput?.let { output ->
       outputConfigurations.add(output.toOutputConfiguration(characteristics))
     }
     if (outputs.enableHdr == true && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
